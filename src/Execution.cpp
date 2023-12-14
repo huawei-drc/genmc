@@ -4640,7 +4640,7 @@ std::string getFilenameFromMData(MDNode *node)
 	}
 	return absPath;
 }
-
+#include "Parser.hpp"
 void Interpreter::replayExecutionBefore(const VectorClock &before)
 {
 	reset();
@@ -4676,6 +4676,22 @@ void Interpreter::replayExecutionBefore(const VectorClock &before)
 			/* Store relevant trace information in the appropriate spot */
 			int line = I.getDebugLoc().getLine();
 			std::string file = getFilenameFromMData(I.getMetadata("dbg"));
+
+			/* Print Stack Trace */
+			Parser::stripSlashes(file);
+			file = SF.CurFunction->getName().str() + "(" + file + ":" + to_string(line) + ")";
+
+			std::string functionName, functionFile;
+			for( int i = ECStack().size()-2 ; i >= 0 ; i-- ){
+				auto &E = ECStack()[i];
+				functionName = E.CurFunction->getName().str();
+				Instruction *TempInstruction = &E.Caller;
+				if( TempInstruction ){
+					functionFile = getFilenameFromMData(TempInstruction->getMetadata("dbg")) + ":" + to_string(TempInstruction->getDebugLoc().getLine());
+				} else functionFile = "";
+				Parser::stripSlashes(functionFile);
+				file = functionName + ( functionFile.empty() ? "" : "(" + functionFile + ")" ) + "->" + file;
+			}
 			getCurThr().prefixLOC[snap + 1] = std::make_pair(line, file);
 
 			/* If the instruction maps to more than one events, we have to fill more spots */
